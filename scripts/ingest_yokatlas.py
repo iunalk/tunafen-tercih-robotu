@@ -24,6 +24,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 import psycopg2
+import psycopg2.extras
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -207,35 +208,66 @@ def main() -> None:
                 rows = data["content"]
                 print(f"[{puan_turu}] sayfa {page + 1}/{total_pages} ({len(rows)} kayıt)")
 
+                # 1) Bu sayfada geçen, henüz cache'te olmayan üniversiteleri TEK sorguda yükle.
+                new_universities: dict[str, tuple[str, str]] = {}
                 for row in rows:
                     uni_name = row["universiteAdi"].strip()
-                    uni_id = university_cache.get(uni_name)
-                    if uni_id is None:
-                        cur.execute(
-                            """
-                            INSERT INTO "University" (name, city, type, "updatedAt")
-                            VALUES (%s, %s, %s, now())
-                            ON CONFLICT (name) DO UPDATE SET city = EXCLUDED.city, "updatedAt" = now()
-                            RETURNING id
-                            """,
-                            (
-                                uni_name,
-                                row.get("uniIlAdi") or row.get("ilAdi") or "",
-                                map_university_type(row.get("universiteTuru")),
-                            ),
+                    if uni_name not in university_cache and uni_name not in new_universities:
+                        new_universities[uni_name] = (
+                            row.get("uniIlAdi") or row.get("ilAdi") or "",
+                            map_university_type(row.get("universiteTuru")),
                         )
-                        uni_id = cur.fetchone()[0]
-                        university_cache[uni_name] = uni_id
 
-                    program_code = str(row["kilavuzKodu"])
-                    name = (row.get("birimGrupAdi") or row["birimAdi"]).strip()
-                    cur.execute(
+                if new_universities:
+                    uni_rows = psycopg2.extras.execute_values(
+                        cur,
+                        """
+                        INSERT INTO "University" (name, city, type, "updatedAt")
+                        VALUES %s
+                        ON CONFLICT (name) DO UPDATE SET city = EXCLUDED.city, "updatedAt" = now()
+                        RETURNING id, name
+                        """,
+                        [(name, city, typ) for name, (city, typ) in new_universities.items()],
+                        template="(%s, %s, %s, now())",
+                        fetch=True,
+                    )
+                    for uni_id, name in uni_rows:
+                        university_cache[name] = uni_id
+
+                # 2) Bu sayfadaki tüm programları TEK sorguda upsert et.
+                program_values = []
+                for row in rows:
+                    uni_id = university_cache[row["universiteAdi"].strip()]
+                    program_values.append(
+                        (
+                            str(row["kilavuzKodu"]),
+                            uni_id,
+                            (row.get("birimGrupAdi") or row["birimAdi"]).strip(),
+                            row.get("fymkAdi"),
+                            row.get("ilAdi") or "",
+                            SCORE_TYPE_MAP[row["puanTuru"]],
+                            map_degree_type(row.get("birimTuruAdi"), row.get("ogrenimTuruAdi")),
+                            row.get("ogrenimSuresi") or 4,
+                            row.get("ogrenimDiliAdi"),
+                            map_scholarship(row.get("bursOraniAdi")),
+                            build_special_conditions(row),
+                            build_accreditations(row),
+                            coerce_int(row.get("basariSirasi")),
+                            coerce_float(row.get("minPuan")),
+                            coerce_int(row.get("kontenjan")),
+                        )
+                    )
+
+                program_id_by_code: dict[str, int] = {}
+                if program_values:
+                    program_rows = psycopg2.extras.execute_values(
+                        cur,
                         """
                         INSERT INTO "Program"
                           ("programCode", "universityId", name, faculty, city, "scoreType", "degreeType",
                            duration, language, "scholarshipType", "specialConditions", accreditations,
                            "currentSuccessRank", "currentMinScore", "currentQuota", "updatedAt")
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, now())
+                        VALUES %s
                         ON CONFLICT ("programCode") DO UPDATE SET
                           "universityId" = EXCLUDED."universityId",
                           name = EXCLUDED.name,
@@ -252,40 +284,22 @@ def main() -> None:
                           "currentMinScore" = EXCLUDED."currentMinScore",
                           "currentQuota" = EXCLUDED."currentQuota",
                           "updatedAt" = now()
-                        RETURNING id
+                        RETURNING id, "programCode"
                         """,
-                        (
-                            program_code,
-                            uni_id,
-                            name,
-                            row.get("fymkAdi"),
-                            row.get("ilAdi") or "",
-                            SCORE_TYPE_MAP[row["puanTuru"]],
-                            map_degree_type(row.get("birimTuruAdi"), row.get("ogrenimTuruAdi")),
-                            row.get("ogrenimSuresi") or 4,
-                            row.get("ogrenimDiliAdi"),
-                            map_scholarship(row.get("bursOraniAdi")),
-                            build_special_conditions(row),
-                            build_accreditations(row),
-                            coerce_int(row.get("basariSirasi")),
-                            coerce_float(row.get("minPuan")),
-                            coerce_int(row.get("kontenjan")),
-                        ),
+                        program_values,
+                        template="(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, now())",
+                        fetch=True,
                     )
-                    program_id = cur.fetchone()[0]
-                    total_programs += 1
+                    for program_id, program_code in program_rows:
+                        program_id_by_code[program_code] = program_id
+                    total_programs += len(program_rows)
 
+                # 3) Bu sayfadaki tüm yıllık istatistikleri TEK sorguda upsert et.
+                stat_values = []
+                for row in rows:
+                    program_id = program_id_by_code[str(row["kilavuzKodu"])]
                     for stat in extract_yearly_stats(row):
-                        cur.execute(
-                            """
-                            INSERT INTO "ProgramYearlyStat" ("programId", year, quota, enrolled, "minScore", "successRank")
-                            VALUES (%s,%s,%s,%s,%s,%s)
-                            ON CONFLICT ("programId", year) DO UPDATE SET
-                              quota = EXCLUDED.quota,
-                              enrolled = EXCLUDED.enrolled,
-                              "minScore" = EXCLUDED."minScore",
-                              "successRank" = EXCLUDED."successRank"
-                            """,
+                        stat_values.append(
                             (
                                 program_id,
                                 stat["year"],
@@ -293,9 +307,24 @@ def main() -> None:
                                 stat["enrolled"],
                                 stat["minScore"],
                                 stat["successRank"],
-                            ),
+                            )
                         )
-                        total_stats += 1
+
+                if stat_values:
+                    psycopg2.extras.execute_values(
+                        cur,
+                        """
+                        INSERT INTO "ProgramYearlyStat" ("programId", year, quota, enrolled, "minScore", "successRank")
+                        VALUES %s
+                        ON CONFLICT ("programId", year) DO UPDATE SET
+                          quota = EXCLUDED.quota,
+                          enrolled = EXCLUDED.enrolled,
+                          "minScore" = EXCLUDED."minScore",
+                          "successRank" = EXCLUDED."successRank"
+                        """,
+                        stat_values,
+                    )
+                    total_stats += len(stat_values)
 
                 conn.commit()
                 page += 1
