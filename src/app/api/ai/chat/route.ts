@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AI_MODEL, getGeminiClient } from "@/lib/gemini";
+import { generateContentWithFallback, getGeminiClient } from "@/lib/gemini";
 import { findCandidates, type StudentProfile } from "@/lib/ai/candidates";
 import { formatCandidatesForPrompt, formatProfile, SYSTEM_PROMPT } from "@/lib/ai/prompt";
 
@@ -32,8 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const response = await client.models.generateContent({
-      model: AI_MODEL,
+    const response = await generateContentWithFallback(client, {
       contents: messages.map((m) => ({
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }],

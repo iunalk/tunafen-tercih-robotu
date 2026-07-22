@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AI_MODEL, getGeminiClient } from "@/lib/gemini";
+import { generateContentWithFallback, getGeminiClient } from "@/lib/gemini";
 import { findCandidates, type StudentProfile } from "@/lib/ai/candidates";
 import { formatCandidatesForPrompt, formatProfile, SYSTEM_PROMPT } from "@/lib/ai/prompt";
 
@@ -56,8 +56,7 @@ Sadece geçerli JSON döndür, başka hiçbir metin ekleme. Şema:
 }`;
 
   try {
-    const response = await client.models.generateContent({
-      model: AI_MODEL,
+    const response = await generateContentWithFallback(client, {
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: SYSTEM_PROMPT,
