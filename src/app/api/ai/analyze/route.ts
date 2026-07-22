@@ -84,6 +84,7 @@ Sadece geçerli JSON döndür, başka hiçbir metin ekleme. Şema:
     return NextResponse.json(parsed);
   } catch (err) {
     console.error("AI analyze error", err);
-    return NextResponse.json({ error: "AI isteği başarısız oldu." }, { status: 502 });
+    const debug = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: "AI isteği başarısız oldu.", debug }, { status: 502 });
   }
 }
