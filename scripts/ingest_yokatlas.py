@@ -105,9 +105,12 @@ def coerce_int(v: Any) -> int | None:
     return i if i > 0 else None
 
 
-def map_scholarship(raw: str | None) -> str:
+def map_scholarship(raw: str | None, university_type: str) -> str:
     if not raw:
-        return "UCRETLI"
+        # YÖK Atlas, standart (indirimsiz/burssuz) programlarda bursOraniAdi alanını
+        # boş bırakıyor. Devlet üniversitelerinde örgün öğretimin ezici çoğunluğu
+        # ücretsizdir; vakıf üniversitelerinde ise standart durum ücretlidir.
+        return "UCRETSIZ" if university_type == "DEVLET" else "UCRETLI"
     key = _norm(raw)
     for k, v in SCHOLARSHIP_MAP.items():
         if _norm(k) == key:
@@ -249,7 +252,7 @@ def main() -> None:
                             map_degree_type(row.get("birimTuruAdi"), row.get("ogrenimTuruAdi")),
                             row.get("ogrenimSuresi") or 4,
                             row.get("ogrenimDiliAdi"),
-                            map_scholarship(row.get("bursOraniAdi")),
+                            map_scholarship(row.get("bursOraniAdi"), map_university_type(row.get("universiteTuru"))),
                             build_special_conditions(row),
                             build_accreditations(row),
                             coerce_int(row.get("basariSirasi")),
