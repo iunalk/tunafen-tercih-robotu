@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AI_MODEL, getAnthropicClient } from "@/lib/anthropic";
+import { AI_MODEL, getGeminiClient } from "@/lib/gemini";
 import { findCandidates, type StudentProfile } from "@/lib/ai/candidates";
 import { formatCandidatesForPrompt, formatProfile, SYSTEM_PROMPT } from "@/lib/ai/prompt";
 
 const TIERS = ["garanti", "gercekci", "hayali"] as const;
 
 export async function POST(req: NextRequest) {
-  const client = getAnthropicClient();
+  const client = getGeminiClient();
   if (!client) {
     return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY tanımlı değil. .env dosyasına kendi Claude API anahtarınızı ekleyin." },
+      { error: "GEMINI_API_KEY tanımlı değil. .env dosyasına Google AI Studio'dan aldığın ücretsiz API anahtarını ekleyin." },
       { status: 503 }
     );
   }
@@ -56,14 +56,17 @@ Sadece geçerli JSON döndür, başka hiçbir metin ekleme. Şema:
 }`;
 
   try {
-    const response = await client.messages.create({
+    const response = await client.models.generateContent({
       model: AI_MODEL,
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        maxOutputTokens: 2048,
+        responseMimeType: "application/json",
+      },
     });
 
-    const text = response.content.find((b) => b.type === "text")?.text ?? "";
+    const text = response.text ?? "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return NextResponse.json({ error: "AI yanıtı ayrıştırılamadı.", raw: text }, { status: 502 });
