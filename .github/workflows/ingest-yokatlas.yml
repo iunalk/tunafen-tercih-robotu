@@ -1,0 +1,30 @@
+name: YÖK Atlas verisini güncelle
+
+# ÖSYM kılavuzunda kontenjan/bölüm/taban puan değişikliği olduğunda
+# production veritabanını otomatik güncel tutar. YÖK Atlas'ın kendi
+# API'sinden (kılavuzla eş zamanlı güncellenir) veri çeker.
+
+on:
+  schedule:
+    # Her gün TR saatiyle 06:00, 12:00, 18:00, 00:00 (UTC 03/09/15/21)
+    - cron: "0 3,9,15,21 * * *"
+  workflow_dispatch: {} # Actions sekmesinden elle de tetiklenebilir
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Bağımlılıkları kur
+        run: pip install -r scripts/requirements.txt
+
+      - name: Veriyi çek ve yükle
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/ingest_yokatlas.py
