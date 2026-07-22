@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ScoreType } from "@/generated/prisma/enums";
+import { AiDisclaimer } from "@/components/ui/AiDisclaimer";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Badge } from "@/components/ui/Badge";
 import { SCORE_TYPE_LABELS } from "@/lib/labels";
@@ -145,6 +146,10 @@ export default function AiDanismanPage() {
     <div className="flex min-h-full flex-col">
       <AppHeader active="/ai-danisman" subtitle="Profiline göre AI destekli tercih analizi" />
 
+      <div className="mx-auto w-full max-w-[1300px] px-4 pt-4 sm:px-6 sm:pt-6">
+        <AiDisclaimer variant="full" />
+      </div>
+
       <main className="mx-auto flex w-full max-w-[1300px] flex-1 flex-col gap-6 p-4 sm:p-6 lg:flex-row lg:items-start">
         <div className="flex flex-col gap-5 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-md)] lg:sticky lg:top-[84px] lg:w-80 lg:shrink-0">
           <div className="flex items-center gap-2">
@@ -262,6 +267,7 @@ export default function AiDanismanPage() {
 
               {result ? (
                 <div className="flex flex-col gap-6">
+                  <AiDisclaimer variant="compact" />
                   <p className="rounded-2xl border border-border bg-surface p-4 text-sm text-foreground shadow-[var(--shadow-sm)]">
                     {result.summary}
                   </p>
@@ -310,6 +316,7 @@ export default function AiDanismanPage() {
             </div>
           ) : (
             <div className="flex min-h-[70vh] flex-1 flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-md)]">
+              <AiDisclaimer variant="compact" />
               <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-1">
                 {messages.length === 0 ? (
                   <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
