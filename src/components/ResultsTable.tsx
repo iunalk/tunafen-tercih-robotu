@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { Prisma } from "@/generated/prisma/client";
 import { ListToggle } from "@/components/ListToggle";
+import { ResultsToolbar } from "@/components/ResultsToolbar";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { SCHOLARSHIP_LABELS, SCORE_TYPE_LABELS, UNIVERSITY_TYPE_LABELS } from "@/lib/labels";
 import { CURRENT_YEAR, HISTORY_YEARS, PAGE_SIZE, type ParsedFilters } from "@/lib/search";
 import { pageLinkHref, sortLinkHref } from "@/lib/url";
 
-type ProgramWithRelations = Prisma.ProgramGetPayload<{
+export type ProgramWithRelations = Prisma.ProgramGetPayload<{
   include: { university: true; yearlyStats: true };
 }>;
 
@@ -80,13 +81,16 @@ export function ResultsTable({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3 shadow-[var(--shadow-sm)]">
-        <p className="text-sm text-muted-foreground">
-          <span className="text-base font-bold text-foreground">{total.toLocaleString("tr-TR")}</span> program bulundu
-        </p>
-        <p className="hidden text-xs text-muted-foreground sm:block">
-          Sayfa {filters.page.toLocaleString("tr-TR")} / {totalPages.toLocaleString("tr-TR")}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3 shadow-[var(--shadow-sm)]">
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            <span className="text-base font-bold text-foreground">{total.toLocaleString("tr-TR")}</span> program bulundu
+          </p>
+          <p className="hidden text-xs text-muted-foreground sm:block">
+            Sayfa {filters.page.toLocaleString("tr-TR")} / {totalPages.toLocaleString("tr-TR")}
+          </p>
+        </div>
+        <ResultsToolbar programs={programs} />
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-md)]">
@@ -231,7 +235,7 @@ function Pagination({ filters, totalPages }: { filters: ParsedFilters; totalPage
   const navBtn = "flex h-8 items-center justify-center rounded-full border border-border bg-surface px-3 text-xs font-medium text-muted-foreground shadow-[var(--shadow-sm)] transition-colors hover:border-border-strong hover:text-foreground";
 
   return (
-    <div className="flex items-center justify-center gap-1.5">
+    <div className="flex items-center justify-center gap-1.5 print:hidden">
       {current > 1 ? (
         <Link href={pageLinkHref(filters, current - 1)} className={navBtn}>
           ‹ Önceki

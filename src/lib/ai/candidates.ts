@@ -72,7 +72,41 @@ export async function findCandidates(profile: StudentProfile, limit = 60): Promi
     .sort((a, b) => a.distance - b.distance)
     .slice(0, limit);
 
-  return withDistance.map(({ row }) => ({
+  return withDistance.map(({ row }) => toCandidate(row));
+}
+
+/** Kullanıcının arama sayfasında filtrelediği ve "AI'ya Aktar" ile gönderdiği
+ * program listesini, sıralamaya göre değil olduğu gibi Candidate'e çevirir. */
+export async function findCandidatesByIds(ids: number[]): Promise<Candidate[]> {
+  if (ids.length === 0) return [];
+  const rows = await prisma.program.findMany({
+    where: { id: { in: ids } },
+    include: { university: true },
+  });
+  // Aktarılan sırayı korumak için orijinal id listesine göre sırala.
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((r): r is NonNullable<typeof r> => Boolean(r) && r!.currentSuccessRank !== null)
+    .map((row) => toCandidate(row));
+}
+
+function toCandidate(row: {
+  programCode: string;
+  university: { name: string; type: string };
+  city: string;
+  name: string;
+  faculty: string | null;
+  degreeType: string;
+  scholarshipType: string;
+  duration: number;
+  language: string | null;
+  currentSuccessRank: number | null;
+  currentMinScore: number | null;
+  currentQuota: number | null;
+  accreditations: string[];
+}): Candidate {
+  return {
     programCode: row.programCode,
     university: row.university.name,
     universityType: row.university.type,
@@ -87,5 +121,5 @@ export async function findCandidates(profile: StudentProfile, limit = 60): Promi
     minScore: row.currentMinScore,
     quota: row.currentQuota,
     accreditations: row.accreditations,
-  }));
+  };
 }

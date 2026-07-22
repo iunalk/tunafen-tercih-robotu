@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScoreType } from "@/generated/prisma/enums";
 import { AiDisclaimer } from "@/components/ui/AiDisclaimer";
 import { AppHeader } from "@/components/ui/AppHeader";
@@ -79,6 +79,28 @@ export default function AiDanismanPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
+  const [transferredIds, setTransferredIds] = useState<number[] | null>(null);
+
+  useEffect(() => {
+    function loadTransferred() {
+      try {
+        const raw = window.localStorage.getItem("tunafen:aiTransfer");
+        if (raw) {
+          const ids = JSON.parse(raw);
+          if (Array.isArray(ids) && ids.length > 0) setTransferredIds(ids);
+        }
+      } catch {
+        // yoksay
+      }
+    }
+    loadTransferred();
+  }, []);
+
+  function clearTransferred() {
+    window.localStorage.removeItem("tunafen:aiTransfer");
+    setTransferredIds(null);
+  }
+
   function currentProfile() {
     return {
       scoreType,
@@ -100,7 +122,7 @@ export default function AiDanismanPage() {
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: currentProfile() }),
+        body: JSON.stringify({ profile: currentProfile(), programIds: transferredIds ?? undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -236,6 +258,18 @@ export default function AiDanismanPage() {
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           {tab === "analiz" ? (
             <div className="flex flex-col gap-5">
+              {transferredIds ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
+                  <span>
+                    <span className="font-semibold">{transferredIds.length} program</span> arama sayfasından aktarıldı
+                    — analiz bu listeye göre yapılacak.
+                  </span>
+                  <button type="button" onClick={clearTransferred} className="text-xs font-medium underline hover:no-underline">
+                    Aktarılan listeyi kaldır
+                  </button>
+                </div>
+              ) : null}
+
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"

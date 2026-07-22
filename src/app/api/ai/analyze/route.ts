@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateContentWithFallback, getGeminiClient } from "@/lib/gemini";
-import { findCandidates, type StudentProfile } from "@/lib/ai/candidates";
+import { findCandidates, findCandidatesByIds, type StudentProfile } from "@/lib/ai/candidates";
 import { formatCandidatesForPrompt, formatProfile, SYSTEM_PROMPT } from "@/lib/ai/prompt";
 
 const TIERS = ["garanti", "gercekci", "hayali"] as const;
@@ -16,11 +16,12 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const profile = body.profile as StudentProfile;
+  const programIds = Array.isArray(body.programIds) ? (body.programIds as number[]) : [];
   if (!profile?.scoreType || !profile?.rank) {
     return NextResponse.json({ error: "Puan türü ve başarı sırası gerekli." }, { status: 400 });
   }
 
-  const candidates = await findCandidates(profile, 60);
+  const candidates = programIds.length ? await findCandidatesByIds(programIds) : await findCandidates(profile, 60);
   if (candidates.length === 0) {
     return NextResponse.json(
       { error: "Bu profile uygun aday program bulunamadı. Filtreleri gevşetmeyi deneyin." },
@@ -28,10 +29,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const listSource = programIds.length
+    ? `ADAY PROGRAMLAR (öğrencinin arama sayfasında kendi seçtiği ve aktardığı liste, ${candidates.length} adet):`
+    : `ADAY PROGRAMLAR (başarı sırasına yakınlığa göre sıralı, ${candidates.length} adet):`;
+
   const userPrompt = `ÖĞRENCİ PROFİLİ:
 ${formatProfile(profile)}
 
-ADAY PROGRAMLAR (başarı sırasına yakınlığa göre sıralı, ${candidates.length} adet):
+${listSource}
 ${formatCandidatesForPrompt(candidates)}
 
 Görev: YKS sisteminde öğrencinin toplamda 24 tercih hakkı vardır. Yukarıdaki aday programları,

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HomeNavLink } from "@/components/ui/HomeNavLink";
 import { Logo } from "@/components/ui/Logo";
 import { StudentSwitcher } from "@/components/ui/StudentSwitcher";
 import { cn } from "@/lib/cn";
@@ -39,21 +40,29 @@ export function AppHeader({
 
         <div className="flex shrink-0 items-center gap-2">
           <nav className="flex items-center gap-0.5 rounded-full border border-border bg-surface-muted p-1 sm:gap-1">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "rounded-full px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors sm:px-3.5 sm:text-sm",
-                  active === item.href
-                    ? "bg-accent text-accent-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <span className="hidden sm:inline">{item.label}</span>
-                <span className="sm:hidden">{item.shortLabel ?? item.label}</span>
-              </Link>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              const linkClassName = cn(
+                "rounded-full px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors sm:px-3.5 sm:text-sm",
+                active === item.href
+                  ? "bg-accent text-accent-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              );
+              const content = (
+                <>
+                  <span className="hidden sm:inline">{item.label}</span>
+                  <span className="sm:hidden">{item.shortLabel ?? item.label}</span>
+                </>
+              );
+              return item.href === "/" ? (
+                <HomeNavLink key={item.href} className={linkClassName}>
+                  {content}
+                </HomeNavLink>
+              ) : (
+                <Link key={item.href} href={item.href} className={linkClassName}>
+                  {content}
+                </Link>
+              );
+            })}
           </nav>
           <StudentSwitcher />
           {extra}

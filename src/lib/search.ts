@@ -1,10 +1,10 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { DegreeType, ScholarshipType, ScoreType } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
+import { CURRENT_YEAR, HISTORY_YEARS } from "@/lib/constants";
 
+export { CURRENT_YEAR, HISTORY_YEARS };
 export const PAGE_SIZE = 20;
-export const CURRENT_YEAR = 2026;
-export const HISTORY_YEARS = [2025, 2024, 2023];
 
 const SORT_FIELDS = ["currentSuccessRank", "currentMinScore", "programCode"] as const;
 export type SortField = (typeof SORT_FIELDS)[number];

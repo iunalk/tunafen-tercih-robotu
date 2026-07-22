@@ -99,4 +99,21 @@ body {
   .print\:hidden {
     display: none !important;
   }
+
+  body {
+    background: none;
+  }
+
+  table {
+    font-size: 8px;
+  }
+
+  th,
+  td {
+    padding: 2px 4px !important;
+  }
+
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
 }
