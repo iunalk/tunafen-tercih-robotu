@@ -31,6 +31,13 @@ export function setCurrentStudent(name: string) {
   window.dispatchEvent(new CustomEvent("tunafen-student-changed"));
 }
 
+/** Yazdır/PDF çıktılarında kullanılacak başlığı üretir. */
+export function buildTercihListTitle(): string {
+  const name = getCurrentStudent();
+  if (!name || name === DEFAULT_STUDENT) return "2026 YKS Tercih Öneri Listesi";
+  return `${name} öğrencisinin 2026 YKS Tercih Öneri Listesi`;
+}
+
 export function subscribeStudent(callback: () => void): () => void {
   window.addEventListener("tunafen-student-changed", callback);
   window.addEventListener("storage", callback);

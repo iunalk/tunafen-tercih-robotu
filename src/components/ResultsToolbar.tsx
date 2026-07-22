@@ -1,12 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ProgramWithRelations } from "@/components/ResultsTable";
 import { CURRENT_YEAR } from "@/lib/constants";
 import { SCHOLARSHIP_LABELS, SCORE_TYPE_LABELS } from "@/lib/labels";
+import { buildTercihListTitle, subscribeStudent } from "@/lib/student";
 
 const AI_TRANSFER_KEY = "tunafen:aiTransfer";
+
+let notoSansBase64Cache: string | null = null;
+
+async function loadNotoSansBase64(): Promise<string> {
+  if (notoSansBase64Cache) return notoSansBase64Cache;
+  const res = await fetch("/fonts/NotoSans-Regular.ttf");
+  const buffer = await res.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  notoSansBase64Cache = btoa(binary);
+  return notoSansBase64Cache;
+}
 
 function PrintIcon() {
   return (
@@ -40,23 +57,37 @@ export function ResultsToolbar({ programs }: { programs: ProgramWithRelations[] 
   const router = useRouter();
   const [pdfLoading, setPdfLoading] = useState(false);
   const [transferred, setTransferred] = useState(false);
+  const [title, setTitle] = useState("2026 YKS Tercih Öneri Listesi");
+
+  useEffect(() => {
+    function sync() {
+      setTitle(buildTercihListTitle());
+    }
+    sync();
+    return subscribeStudent(sync);
+  }, []);
 
   async function downloadPdf() {
     setPdfLoading(true);
     try {
       const { jsPDF } = await import("jspdf");
       const { default: autoTable } = await import("jspdf-autotable");
+      const fontBase64 = await loadNotoSansBase64();
+
       const doc = new jsPDF({ orientation: "landscape" });
+      doc.addFileToVFS("NotoSans-Regular.ttf", fontBase64);
+      doc.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+      doc.setFont("NotoSans");
 
       doc.setFontSize(13);
-      doc.text("Tunafen Tercih Robotu — Sonuç Listesi", 14, 12);
+      doc.text(title, 14, 12);
       doc.setFontSize(8);
       doc.text(`Bu sayfadaki ${programs.length} program · ${new Date().toLocaleDateString("tr-TR")}`, 14, 17);
 
       autoTable(doc, {
         startY: 21,
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [79, 70, 229] },
+        styles: { font: "NotoSans", fontStyle: "normal", fontSize: 7, cellPadding: 1.5 },
+        headStyles: { font: "NotoSans", fontStyle: "normal", fillColor: [79, 70, 229] },
         head: [["#", "Program Kodu", "Puan Türü", "Üniversite", "Bölüm", "Ücret/Burs", "Başarı Sırası", "Taban Puan", "Kontenjan"]],
         body: programs.map((p, i) => {
           const current = p.yearlyStats.find((s) => s.year === CURRENT_YEAR);
@@ -88,23 +119,26 @@ export function ResultsToolbar({ programs }: { programs: ProgramWithRelations[] 
   }
 
   return (
-    <div className="flex flex-wrap gap-2 print:hidden">
-      <button type="button" onClick={() => window.print()} className={btnClass}>
-        <PrintIcon />
-        Yazdır
-      </button>
-      <button type="button" onClick={downloadPdf} disabled={pdfLoading} className={btnClass}>
-        <PdfIcon />
-        {pdfLoading ? "Hazırlanıyor..." : "PDF İndir"}
-      </button>
-      <button
-        type="button"
-        onClick={transferToAi}
-        className={`${btnClass} border-accent/40 bg-accent-soft text-accent hover:border-accent`}
-      >
-        <AiIcon />
-        {transferred ? "Aktarıldı ✓" : "AI'ya Aktar"}
-      </button>
+    <div className="flex flex-1 flex-wrap items-center justify-between gap-2">
+      <p className="hidden text-sm font-semibold text-foreground print:block">{title}</p>
+      <div className="flex flex-wrap gap-2 print:hidden">
+        <button type="button" onClick={() => window.print()} className={btnClass}>
+          <PrintIcon />
+          Yazdır
+        </button>
+        <button type="button" onClick={downloadPdf} disabled={pdfLoading} className={btnClass}>
+          <PdfIcon />
+          {pdfLoading ? "Hazırlanıyor..." : "PDF İndir"}
+        </button>
+        <button
+          type="button"
+          onClick={transferToAi}
+          className={`${btnClass} border-accent/40 bg-accent-soft text-accent hover:border-accent`}
+        >
+          <AiIcon />
+          {transferred ? "Aktarıldı ✓" : "AI'ya Aktar"}
+        </button>
+      </div>
     </div>
   );
 }
