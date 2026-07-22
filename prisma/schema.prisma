@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UniversityType {
+  DEVLET
+  VAKIF
+}
+
+enum ScoreType {
+  SAY
+  EA
+  SOZ
+  DIL
+  TYT
+}
+
+enum DegreeType {
+  LISANS
+  ONLISANS
+  OZEL_YETENEK
+  ACIKOGRETIM
+  UZAKTAN
+}
+
+enum ScholarshipType {
+  UCRETSIZ
+  BURSLU
+  INDIRIM_75
+  INDIRIM_50
+  INDIRIM_25
+  UCRETLI
+}
+
+model University {
+  id        Int            @id @default(autoincrement())
+  name      String         @unique
+  city      String
+  type      UniversityType
+  programs  Program[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Program {
+  id                Int             @id @default(autoincrement())
+  programCode       String          @unique
+  university        University      @relation(fields: [universityId], references: [id])
+  universityId      Int
+  name              String
+  faculty           String?
+  city              String
+  scoreType         ScoreType
+  degreeType        DegreeType
+  duration          Int
+  language          String?
+  scholarshipType   ScholarshipType
+  specialConditions String?
+  accreditations    String[]        @default([])
+  yearlyStats       ProgramYearlyStat[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Sonuç tablosunda sıralama/filtreleme için güncel yıl istatistiğinin denormalize
+  // edilmiş hali. Otoriter veri yearlyStats'te tutulur; bu alanlar ingest script'i
+  // tarafından her yüklemede güncellenir.
+  currentSuccessRank Int?
+  currentMinScore    Float?
+  currentQuota       Int?
+
+  @@index([scoreType])
+  @@index([city])
+  @@index([degreeType])
+  @@index([universityId])
+  @@index([currentSuccessRank])
+  @@index([currentMinScore])
+}
+
+model ProgramYearlyStat {
+  id           Int     @id @default(autoincrement())
+  program      Program @relation(fields: [programId], references: [id])
+  programId    Int
+  year         Int
+  quota        Int?
+  enrolled     Int?
+  minScore     Float?
+  successRank  Int?
+
+  @@unique([programId, year])
+  @@index([year])
+  @@index([successRank])
+  @@index([minScore])
+}

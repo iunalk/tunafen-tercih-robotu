@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# python (ingest script)
+.venv/
+__pycache__/
+*.pyc
+
+# editor/agent tooling (local only)
+.agents/
+.windsurf/
+.claude/skills/
+skills-lock.json
