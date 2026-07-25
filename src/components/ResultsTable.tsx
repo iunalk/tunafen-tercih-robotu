@@ -118,7 +118,9 @@ export function ResultsTable({
                 <th className="p-3 font-medium">Kontenjan</th>
                 <th className="p-3 font-medium">Akreditasyon</th>
                 <th className="p-3 font-medium">Özel Koşullar</th>
-                <th className="p-3 font-medium">Listelerim</th>
+                <th className="sticky right-0 z-10 border-l border-border bg-surface-muted p-3 font-medium shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                  Listelerim
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -207,7 +209,7 @@ export function ResultsTable({
                         <span className="text-muted-foreground">–</span>
                       )}
                     </td>
-                    <td className="p-3">
+                    <td className="sticky right-0 z-10 border-l border-border bg-surface p-3 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)]">
                       <ListToggle programId={p.id} />
                     </td>
                   </tr>

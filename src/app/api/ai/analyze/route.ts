@@ -65,7 +65,7 @@ Sadece geçerli JSON döndür, başka hiçbir metin ekleme. Şema:
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: SYSTEM_PROMPT,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
         responseMimeType: "application/json",
       },
     });
@@ -73,6 +73,7 @@ Sadece geçerli JSON döndür, başka hiçbir metin ekleme. Şema:
     const text = response.text ?? "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error("AI analyze: yanıt ayrıştırılamadı, ham metin:", text);
       return NextResponse.json({ error: "AI yanıtı ayrıştırılamadı.", raw: text }, { status: 502 });
     }
     const parsed = JSON.parse(jsonMatch[0]);

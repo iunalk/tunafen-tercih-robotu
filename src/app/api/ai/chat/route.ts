@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       })),
       config: {
         systemInstruction: `${SYSTEM_PROMPT}\n\n${contextBlock}`,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 4096,
       },
     });
 
