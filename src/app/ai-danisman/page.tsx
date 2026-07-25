@@ -33,6 +33,14 @@ interface ChatMessage {
   content: string;
 }
 
+interface TransferredProgram {
+  id: number;
+  programCode: string;
+  name: string;
+  city: string;
+  university: { name: string };
+}
+
 const TIER_LABELS: Record<keyof AnalyzeResult["tiers"], string> = {
   garanti: "Garanti",
   gercekci: "Gerçekçi",
@@ -80,6 +88,9 @@ export default function AiDanismanPage() {
   const [chatError, setChatError] = useState<string | null>(null);
 
   const [transferredIds, setTransferredIds] = useState<number[] | null>(null);
+  const [transferredPrograms, setTransferredPrograms] = useState<TransferredProgram[]>([]);
+  const [transferredLoading, setTransferredLoading] = useState(false);
+  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     function loadTransferred() {
@@ -96,9 +107,64 @@ export default function AiDanismanPage() {
     loadTransferred();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    async function loadPrograms() {
+      if (!transferredIds || transferredIds.length === 0) {
+        setTransferredPrograms([]);
+        return;
+      }
+      setTransferredLoading(true);
+      try {
+        const res = await fetch(`/api/programs?ids=${transferredIds.join(",")}`);
+        if (!res.ok) throw new Error("Programlar yüklenemedi");
+        const data: { programs: TransferredProgram[] } = await res.json();
+        if (!active) return;
+        const byId = new Map(data.programs.map((p) => [p.id, p]));
+        setTransferredPrograms(transferredIds.map((id) => byId.get(id)).filter((p): p is TransferredProgram => Boolean(p)));
+      } catch {
+        if (active) setTransferredPrograms([]);
+      } finally {
+        if (active) setTransferredLoading(false);
+      }
+    }
+    loadPrograms();
+    return () => {
+      active = false;
+    };
+  }, [transferredIds]);
+
   function clearTransferred() {
     window.localStorage.removeItem("tunafen:aiTransfer");
     setTransferredIds(null);
+    setTransferredPrograms([]);
+  }
+
+  function shareResult() {
+    if (!result) return;
+    const lines = [
+      "Tunafen Tercih Robotu — AI Tercih Analizi",
+      "",
+      result.summary,
+      "",
+      ...(Object.keys(TIER_LABELS) as (keyof AnalyzeResult["tiers"])[]).flatMap((tier) => [
+        `${TIER_LABELS[tier]}:`,
+        ...result.tiers[tier].map(
+          (item) => `- ${item.candidate ? `${item.candidate.university} — ${item.candidate.name}` : item.programCode} (${item.programCode})`
+        ),
+        "",
+      ]),
+    ];
+    const text = lines.join("\n");
+
+    if (navigator.share) {
+      navigator.share({ title: "Tunafen Tercih Robotu — AI Analizi", text }).catch(() => {});
+      return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    });
   }
 
   function currentProfile() {
@@ -166,14 +232,16 @@ export default function AiDanismanPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <AppHeader active="/ai-danisman" subtitle="Profiline göre AI destekli tercih analizi" />
+      <div className="print:hidden">
+        <AppHeader active="/ai-danisman" subtitle="Profiline göre AI destekli tercih analizi" />
+      </div>
 
-      <div className="mx-auto w-full max-w-[1300px] px-4 pt-4 sm:px-6 sm:pt-6">
+      <div className="mx-auto w-full max-w-[1300px] px-4 pt-4 sm:px-6 sm:pt-6 print:hidden">
         <AiDisclaimer variant="full" />
       </div>
 
       <main className="mx-auto flex w-full max-w-[1300px] flex-1 flex-col gap-6 p-4 sm:p-6 lg:flex-row lg:items-start">
-        <div className="flex flex-col gap-5 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-md)] lg:sticky lg:top-[84px] lg:w-80 lg:shrink-0">
+        <div className="flex flex-col gap-5 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-md)] lg:sticky lg:top-[84px] lg:w-80 lg:shrink-0 print:hidden">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-soft text-accent">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -259,18 +327,39 @@ export default function AiDanismanPage() {
           {tab === "analiz" ? (
             <div className="flex flex-col gap-5">
               {transferredIds ? (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
-                  <span>
-                    <span className="font-semibold">{transferredIds.length} program</span> arama sayfasından aktarıldı
-                    — analiz bu listeye göre yapılacak.
-                  </span>
-                  <button type="button" onClick={clearTransferred} className="text-xs font-medium underline hover:no-underline">
-                    Aktarılan listeyi kaldır
-                  </button>
+                <div className="flex flex-col gap-2 rounded-xl border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent print:hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      <span className="font-semibold">{transferredIds.length} program</span> arama sayfasından aktarıldı
+                      — analiz bu listeye göre yapılacak.
+                    </span>
+                    <button type="button" onClick={clearTransferred} className="text-xs font-medium underline hover:no-underline">
+                      Aktarılan listeyi kaldır
+                    </button>
+                  </div>
+                  {transferredLoading ? (
+                    <p className="text-xs text-accent/80">Liste yükleniyor...</p>
+                  ) : transferredPrograms.length ? (
+                    <ul className="flex flex-col gap-1 rounded-lg bg-surface/60 p-2 text-xs text-foreground">
+                      {transferredPrograms.map((p) => (
+                        <li key={p.id} className="flex items-center justify-between gap-2 truncate">
+                          <span className="truncate">
+                            <span className="font-medium">{p.university.name}</span> — {p.name}
+                          </span>
+                          <span className="shrink-0 font-mono text-muted-foreground">{p.programCode}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-accent/80">
+                      Aktarılan programlar yüklenemedi. Arama sayfasına dönüp tekrar &quot;AI&apos;ya Aktar&quot;a
+                      basmayı deneyin.
+                    </p>
+                  )}
                 </div>
               ) : null}
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 print:hidden">
                 <button
                   type="button"
                   onClick={runAnalyze}
@@ -301,6 +390,33 @@ export default function AiDanismanPage() {
 
               {result ? (
                 <div className="flex flex-col gap-6">
+                  <div className="flex items-center justify-end gap-2 print:hidden">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs font-medium text-foreground shadow-[var(--shadow-sm)] transition-colors hover:border-border-strong"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M6 9V4h12v5M6 18h12v4H6v-4Zm-3-9h18v7H3V9Z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Yazdır
+                      </button>
+                      <button
+                        type="button"
+                        onClick={shareResult}
+                        className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs font-medium text-foreground shadow-[var(--shadow-sm)] transition-colors hover:border-border-strong"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="18" cy="5" r="2.5" />
+                          <circle cx="6" cy="12" r="2.5" />
+                          <circle cx="18" cy="19" r="2.5" />
+                          <path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6" strokeLinecap="round" />
+                        </svg>
+                        {shared ? "Kopyalandı ✓" : "Paylaş"}
+                      </button>
+                    </div>
+                  </div>
                   <AiDisclaimer variant="compact" />
                   <p className="rounded-2xl border border-border bg-surface p-4 text-sm text-foreground shadow-[var(--shadow-sm)]">
                     {result.summary}

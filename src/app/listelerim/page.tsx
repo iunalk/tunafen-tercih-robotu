@@ -160,12 +160,21 @@ export default function ListelerimPage() {
     let active = true;
     async function load() {
       setLoading(true);
-      const data: { programs: ProgramWithRelations[] } = allIds.length
-        ? await fetch(`/api/programs?ids=${allIds.join(",")}`).then((r) => r.json())
-        : { programs: [] };
-      if (!active) return;
-      setProgramsById(new Map(data.programs.map((p) => [p.id, p])));
-      setLoading(false);
+      try {
+        if (!allIds.length) {
+          if (active) setProgramsById(new Map());
+          return;
+        }
+        const res = await fetch(`/api/programs?ids=${allIds.join(",")}`);
+        if (!res.ok) throw new Error("Programlar yüklenemedi");
+        const data: { programs: ProgramWithRelations[] } = await res.json();
+        if (!active) return;
+        setProgramsById(new Map(data.programs.map((p) => [p.id, p])));
+      } catch {
+        if (active) setProgramsById(new Map());
+      } finally {
+        if (active) setLoading(false);
+      }
     }
     load();
     return () => {
