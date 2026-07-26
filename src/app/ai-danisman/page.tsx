@@ -240,7 +240,7 @@ export default function AiDanismanPage() {
         <AiDisclaimer variant="full" />
       </div>
 
-      <main className="mx-auto flex w-full max-w-[1300px] flex-1 flex-col gap-6 p-4 sm:p-6 lg:flex-row lg:items-start">
+      <main className="mx-auto flex w-full max-w-[1300px] flex-1 flex-col gap-6 p-4 sm:p-6 lg:flex-row lg:items-start print:max-w-none print:p-0">
         <div className="flex flex-col gap-5 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-md)] lg:sticky lg:top-[84px] lg:w-80 lg:shrink-0 print:hidden">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-soft text-accent">
@@ -422,7 +422,7 @@ export default function AiDanismanPage() {
                     {result.summary}
                   </p>
                   {(Object.keys(TIER_LABELS) as (keyof AnalyzeResult["tiers"])[]).map((tier) => (
-                    <div key={tier} className="flex flex-col gap-2.5">
+                    <div key={tier} className="flex flex-col gap-2.5 print:break-inside-avoid">
                       <div className="flex items-center gap-2">
                         <span className={`h-2 w-2 rounded-full ${TIER_STYLES[tier].dot}`} />
                         <h3 className="font-bold text-foreground">{TIER_LABELS[tier]}</h3>
@@ -431,11 +431,11 @@ export default function AiDanismanPage() {
                       {result.tiers[tier].length === 0 ? (
                         <p className="text-sm text-muted-foreground">Bu kategoride öneri yok.</p>
                       ) : (
-                        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3 print:grid-cols-1 print:gap-1.5">
                           {result.tiers[tier].map((item) => (
                             <div
                               key={item.programCode}
-                              className={`flex flex-col gap-1.5 rounded-xl border border-border border-l-4 bg-surface p-3.5 shadow-[var(--shadow-sm)] ${TIER_STYLES[tier].bar}`}
+                              className={`flex flex-col gap-1.5 rounded-xl border border-border border-l-4 bg-surface p-3.5 shadow-[var(--shadow-sm)] print:break-inside-avoid ${TIER_STYLES[tier].bar}`}
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="font-semibold text-foreground">

@@ -4,6 +4,8 @@ import { FilterableCheckboxList } from "@/components/ui/FilterableCheckboxList";
 import { FormAutoSubmit } from "@/components/ui/FormAutoSubmit";
 import { PillCheckbox } from "@/components/ui/PillCheckbox";
 import { SegmentedRadio } from "@/components/ui/SegmentedRadio";
+import { SyncedNumberInput } from "@/components/ui/SyncedNumberInput";
+import { SyncedRadio } from "@/components/ui/SyncedRadio";
 import { DEGREE_TYPE_LABELS, SCHOLARSHIP_LABELS, SCORE_TYPE_LABELS } from "@/lib/labels";
 import type { ParsedFilters } from "@/lib/search";
 
@@ -31,10 +33,14 @@ const inputClass =
 
 function SortRadio({ value, defaultChecked }: { value: ParsedFilters["sort"]; defaultChecked: boolean }) {
   return (
-    <label className="flex normal-case cursor-pointer items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-      <input type="radio" name="sort" value={value} defaultChecked={defaultChecked} className="accent-accent" />
+    <SyncedRadio
+      name="sort"
+      value={value}
+      defaultChecked={defaultChecked}
+      className="normal-case text-[11px] font-medium text-muted-foreground"
+    >
       Bu alana göre sırala
-    </label>
+    </SyncedRadio>
   );
 }
 
@@ -77,6 +83,9 @@ export function FilterPanel({ filters, cities, universities, departments }: Filt
               {DEGREE_TYPE_LABELS[v]}
             </PillCheckbox>
           ))}
+          <PillCheckbox name="onlyNew" value="1" defaultChecked={!!filters.onlyNewPrograms}>
+            Yeni Açılan Bölümler
+          </PillCheckbox>
         </div>
       </Section>
 
@@ -140,9 +149,9 @@ export function FilterPanel({ filters, cities, universities, departments }: Filt
           extra={<SortRadio value="currentSuccessRank" defaultChecked={filters.sort === "currentSuccessRank"} />}
         >
           <div className="flex items-center gap-2">
-            <input type="number" name="minRank" placeholder="min" defaultValue={filters.minRank ?? ""} className={inputClass} />
+            <SyncedNumberInput name="minRank" placeholder="min" defaultValue={filters.minRank ?? ""} className={inputClass} />
             <span className="text-muted-foreground">–</span>
-            <input type="number" name="maxRank" placeholder="max" defaultValue={filters.maxRank ?? ""} className={inputClass} />
+            <SyncedNumberInput name="maxRank" placeholder="max" defaultValue={filters.maxRank ?? ""} className={inputClass} />
           </div>
         </Section>
 
@@ -151,9 +160,9 @@ export function FilterPanel({ filters, cities, universities, departments }: Filt
           extra={<SortRadio value="currentMinScore" defaultChecked={filters.sort === "currentMinScore"} />}
         >
           <div className="flex items-center gap-2">
-            <input type="number" name="minScore" placeholder="min" defaultValue={filters.minScore ?? ""} className={inputClass} />
+            <SyncedNumberInput name="minScore" placeholder="min" defaultValue={filters.minScore ?? ""} className={inputClass} />
             <span className="text-muted-foreground">–</span>
-            <input type="number" name="maxScore" placeholder="max" defaultValue={filters.maxScore ?? ""} className={inputClass} />
+            <SyncedNumberInput name="maxScore" placeholder="max" defaultValue={filters.maxScore ?? ""} className={inputClass} />
           </div>
         </Section>
       </div>

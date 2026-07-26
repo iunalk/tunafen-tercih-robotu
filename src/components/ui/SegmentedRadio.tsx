@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 export function SegmentedRadio({
   name,
   options,
@@ -5,6 +9,18 @@ export function SegmentedRadio({
   name: string;
   options: { value: string; label: string; defaultChecked?: boolean }[];
 }) {
+  const initial = options.find((o) => o.defaultChecked)?.value ?? "";
+  const [selected, setSelected] = useState(initial);
+  const [prevInitial, setPrevInitial] = useState(initial);
+
+  // Sunucudan gelen filtre durumu (URL) değiştiğinde, React aynı DOM
+  // düğümünü yeniden kullanırsa defaultChecked tekrar uygulanmaz — bu yüzden
+  // güncel değeri açıkça senkronize ediyoruz (bkz. PillCheckbox).
+  if (initial !== prevInitial) {
+    setPrevInitial(initial);
+    setSelected(initial);
+  }
+
   return (
     <div className="inline-flex w-full rounded-lg border border-border bg-surface-muted p-1">
       {options.map((opt) => (
@@ -13,7 +29,8 @@ export function SegmentedRadio({
             type="radio"
             name={name}
             value={opt.value}
-            defaultChecked={opt.defaultChecked}
+            checked={selected === opt.value}
+            onChange={() => setSelected(opt.value)}
             className="peer sr-only"
           />
           <span

@@ -1,10 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { DegreeType, ScholarshipType, ScoreType } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
-import { CURRENT_YEAR, HISTORY_YEARS } from "@/lib/constants";
+import { CURRENT_YEAR, HISTORY_YEARS, PAGE_SIZE } from "@/lib/constants";
 
-export { CURRENT_YEAR, HISTORY_YEARS };
-export const PAGE_SIZE = 20;
+export { CURRENT_YEAR, HISTORY_YEARS, PAGE_SIZE };
 
 const SORT_FIELDS = ["currentSuccessRank", "currentMinScore", "programCode"] as const;
 export type SortField = (typeof SORT_FIELDS)[number];
@@ -17,7 +16,10 @@ function toArray(value: string | string[] | undefined): string[] {
 function toInt(value: string | string[] | undefined): number | undefined {
   const v = Array.isArray(value) ? value[0] : value;
   if (!v) return undefined;
-  const n = Number.parseInt(v, 10);
+  // Binlik ayraçlı girişleri (ör. "12.000") de kabul et.
+  const digitsOnly = v.replace(/\D/g, "");
+  if (!digitsOnly) return undefined;
+  const n = Number.parseInt(digitsOnly, 10);
   return Number.isFinite(n) ? n : undefined;
 }
 
@@ -35,6 +37,7 @@ export interface ParsedFilters {
   maxRank?: number;
   minScore?: number;
   maxScore?: number;
+  onlyNewPrograms?: boolean;
   sort: SortField;
   dir: "asc" | "desc";
   page: number;
@@ -62,6 +65,7 @@ export function parseFilters(params: RawSearchParams): ParsedFilters {
     maxRank: toInt(params.maxRank),
     minScore: toInt(params.minScore),
     maxScore: toInt(params.maxScore),
+    onlyNewPrograms: params.onlyNew === "1",
     sort,
     dir: dirParam === "desc" ? "desc" : "asc",
     page: Math.max(1, toInt(params.page) ?? 1),
@@ -92,6 +96,9 @@ function buildWhere(filters: ParsedFilters, exclude?: "city" | "university" | "d
       ...(filters.maxScore !== undefined ? { lte: filters.maxScore } : {}),
     };
   }
+  // "Yeni açılan bölümler": geçmiş yıllara (2023-2025) ait hiç istatistiği olmayan,
+  // sadece güncel yılda (ilk kez) görünen programlar.
+  if (filters.onlyNewPrograms) where.yearlyStats = { every: { year: CURRENT_YEAR } };
 
   return where;
 }
@@ -122,30 +129,32 @@ export async function searchPrograms(filters: ParsedFilters) {
  * seçtiğinde üniversite ve bölüm listeleri otomatik güncellenir, ama şehrin
  * kendisini tekrar seçebilmen engellenmez.
  */
+const trCollator = new Intl.Collator("tr");
+
 export async function getFilterOptions(filters: ParsedFilters) {
   const [cityRows, universityRows, deptRows] = await Promise.all([
     prisma.program.findMany({
       where: buildWhere(filters, "city"),
       distinct: ["city"],
       select: { city: true },
-      orderBy: { city: "asc" },
     }),
     prisma.university.findMany({
       where: { programs: { some: buildWhere(filters, "university") } },
       select: { id: true, name: true },
-      orderBy: { name: "asc" },
     }),
     prisma.program.findMany({
       where: buildWhere(filters, "dept"),
       distinct: ["name"],
       select: { name: true },
-      orderBy: { name: "asc" },
     }),
   ]);
 
+  // Veritabanının varsayılan (byte tabanlı) sıralaması Türkçe harfleri (İ, Ş, Ğ, Ç, Ö, Ü)
+  // doğru sıralamadığı için (ör. "İnşaat" Z'den sonra görünüyordu), Türkçe alfabetik
+  // sıralamayı burada, JS tarafında uyguluyoruz.
   return {
-    cities: cityRows.map((c) => c.city),
-    universities: universityRows,
-    departments: deptRows.map((d) => d.name),
+    cities: cityRows.map((c) => c.city).sort(trCollator.compare),
+    universities: [...universityRows].sort((a, b) => trCollator.compare(a.name, b.name)),
+    departments: deptRows.map((d) => d.name).sort(trCollator.compare),
   };
 }

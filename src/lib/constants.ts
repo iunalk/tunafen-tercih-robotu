@@ -2,3 +2,4 @@
 // bileşenlerinden (özellikle "use client" olanlardan) güvenle import edilebilir.
 export const CURRENT_YEAR = 2026;
 export const HISTORY_YEARS = [2025, 2024, 2023];
+export const PAGE_SIZE = 20;

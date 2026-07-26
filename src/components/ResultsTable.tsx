@@ -1,10 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import type { Prisma } from "@/generated/prisma/client";
-import { ListToggle } from "@/components/ListToggle";
 import { ResultsToolbar } from "@/components/ResultsToolbar";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { SCHOLARSHIP_LABELS, SCORE_TYPE_LABELS, UNIVERSITY_TYPE_LABELS } from "@/lib/labels";
-import { CURRENT_YEAR, HISTORY_YEARS, PAGE_SIZE, type ParsedFilters } from "@/lib/search";
+import { CURRENT_YEAR, HISTORY_YEARS, PAGE_SIZE } from "@/lib/constants";
+import type { ParsedFilters } from "@/lib/search";
+import { SelectionProvider, useSelection } from "@/lib/selection";
 import { pageLinkHref, sortLinkHref } from "@/lib/url";
 
 export type ProgramWithRelations = Prisma.ProgramGetPayload<{
@@ -80,55 +83,59 @@ export function ResultsTable({
   const years = [CURRENT_YEAR, ...HISTORY_YEARS];
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3 shadow-[var(--shadow-sm)]">
-        <div className="flex items-center gap-3">
-          <p className="text-sm text-muted-foreground">
-            <span className="text-base font-bold text-foreground">{total.toLocaleString("tr-TR")}</span> program bulundu
-          </p>
-          <p className="hidden text-xs text-muted-foreground sm:block">
-            Sayfa {filters.page.toLocaleString("tr-TR")} / {totalPages.toLocaleString("tr-TR")}
-          </p>
+    <SelectionProvider>
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3 shadow-[var(--shadow-sm)]">
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              <span className="text-base font-bold text-foreground">{total.toLocaleString("tr-TR")}</span> program bulundu
+            </p>
+            <p className="hidden text-xs text-muted-foreground sm:block">
+              Sayfa {filters.page.toLocaleString("tr-TR")} / {totalPages.toLocaleString("tr-TR")}
+            </p>
+          </div>
+          <ResultsToolbar programs={programs} />
         </div>
-        <ResultsToolbar programs={programs} />
-      </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-md)]">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1150px] border-collapse text-left text-xs">
-            <thead className="bg-surface-muted text-muted-foreground">
-              <tr>
-                <th className="p-3 font-medium">#</th>
-                <th className="p-3 font-medium">
-                  <SortHeader label="Program Kodu" field="programCode" filters={filters} />
-                </th>
-                <th className="p-3 font-medium">Puan Türü</th>
-                <th className="p-3 font-medium">Üniversite</th>
-                <th className="p-3 font-medium">Bölüm / Program</th>
-                <th className="p-3 font-medium">Ek Bilgi</th>
-                <th className="p-3 font-medium">Süre</th>
-                <th className="p-3 font-medium">
-                  <SortHeader label="Başarı Sırası" field="currentSuccessRank" filters={filters} />
-                  <div className="font-normal text-border-strong">({years.join("/")})</div>
-                </th>
-                <th className="p-3 font-medium">
-                  <SortHeader label="Taban Puanı" field="currentMinScore" filters={filters} />
-                  <div className="font-normal text-border-strong">({years.join("/")})</div>
-                </th>
-                <th className="p-3 font-medium">Kontenjan</th>
-                <th className="p-3 font-medium">Akreditasyon</th>
-                <th className="p-3 font-medium">Özel Koşullar</th>
-                <th className="sticky right-0 z-10 border-l border-border bg-surface-muted p-3 font-medium shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)]">
-                  Listelerim
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {programs.map((p, i) => {
-                const statByYear = new Map(p.yearlyStats.map((s) => [s.year, s]));
-                return (
-                  <tr key={p.id} className="border-t border-border align-top transition-colors hover:bg-accent-soft/40">
-                    <td className="p-3 text-muted-foreground">{(filters.page - 1) * PAGE_SIZE + i + 1}</td>
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-md)]">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1150px] border-collapse text-left text-xs">
+              <thead className="bg-surface-muted text-muted-foreground">
+                <tr>
+                  <th className="sticky left-0 z-10 border-r border-border bg-surface-muted p-3 font-medium">
+                    <SelectAllCheckbox ids={programs.map((p) => p.id)} />
+                  </th>
+                  <th className="p-3 font-medium">#</th>
+                  <th className="p-3 font-medium">
+                    <SortHeader label="Program Kodu" field="programCode" filters={filters} />
+                  </th>
+                  <th className="p-3 font-medium">Puan Türü</th>
+                  <th className="p-3 font-medium">Üniversite</th>
+                  <th className="p-3 font-medium">Bölüm / Program</th>
+                  <th className="p-3 font-medium">Ek Bilgi</th>
+                  <th className="p-3 font-medium">Süre</th>
+                  <th className="p-3 font-medium">
+                    <SortHeader label="Başarı Sırası" field="currentSuccessRank" filters={filters} />
+                    <div className="font-normal text-border-strong">({years.join("/")})</div>
+                  </th>
+                  <th className="p-3 font-medium">
+                    <SortHeader label="Taban Puanı" field="currentMinScore" filters={filters} />
+                    <div className="font-normal text-border-strong">({years.join("/")})</div>
+                  </th>
+                  <th className="p-3 font-medium">Kontenjan</th>
+                  <th className="p-3 font-medium">Akreditasyon</th>
+                  <th className="p-3 font-medium">Özel Koşullar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {programs.map((p, i) => {
+                  const statByYear = new Map(p.yearlyStats.map((s) => [s.year, s]));
+                  return (
+                    <tr key={p.id} className="border-t border-border align-top transition-colors hover:bg-accent-soft/40">
+                      <td className="sticky left-0 z-10 border-r border-border bg-surface p-3">
+                        <RowCheckbox id={p.id} />
+                      </td>
+                      <td className="p-3 text-muted-foreground">{(filters.page - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="p-3 font-mono text-muted-foreground">{p.programCode}</td>
                     <td className="p-3">
                       <Badge tone={SCORE_TYPE_TONE[p.scoreType] ?? "neutral"}>{SCORE_TYPE_LABELS[p.scoreType]}</Badge>
@@ -209,19 +216,44 @@ export function ResultsTable({
                         <span className="text-muted-foreground">–</span>
                       )}
                     </td>
-                    <td className="sticky right-0 z-10 border-l border-border bg-surface p-3 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)]">
-                      <ListToggle programId={p.id} />
-                    </td>
                   </tr>
                 );
               })}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      <Pagination filters={filters} totalPages={totalPages} />
-    </div>
+        <Pagination filters={filters} totalPages={totalPages} />
+      </div>
+    </SelectionProvider>
+  );
+}
+
+function SelectAllCheckbox({ ids }: { ids: number[] }) {
+  const { selected, setMany } = useSelection();
+  const allChecked = ids.length > 0 && ids.every((id) => selected.has(id));
+  return (
+    <input
+      type="checkbox"
+      checked={allChecked}
+      onChange={(e) => setMany(ids, e.target.checked)}
+      aria-label="Tümünü seç"
+      className="h-4 w-4 accent-[var(--color-accent)]"
+    />
+  );
+}
+
+function RowCheckbox({ id }: { id: number }) {
+  const { isSelected, toggle } = useSelection();
+  return (
+    <input
+      type="checkbox"
+      checked={isSelected(id)}
+      onChange={() => toggle(id)}
+      aria-label="Program seç"
+      className="h-4 w-4 accent-[var(--color-accent)]"
+    />
   );
 }
 

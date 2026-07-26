@@ -1,29 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ProgramWithRelations } from "@/components/ResultsTable";
 import { CURRENT_YEAR } from "@/lib/constants";
 import { SCHOLARSHIP_LABELS, SCORE_TYPE_LABELS } from "@/lib/labels";
+import { addManyToList, LIST_KEYS, type ListKey } from "@/lib/lists";
+import { loadNotoSansBase64 } from "@/lib/pdfFont";
+import { useSelection } from "@/lib/selection";
 import { buildTercihListTitle, subscribeStudent } from "@/lib/student";
 
+const LIST_LABELS: Record<ListKey, string> = { L1: "Liste 1", L2: "Liste 2", L3: "Liste 3" };
+
 const AI_TRANSFER_KEY = "tunafen:aiTransfer";
-
-let notoSansBase64Cache: string | null = null;
-
-async function loadNotoSansBase64(): Promise<string> {
-  if (notoSansBase64Cache) return notoSansBase64Cache;
-  const res = await fetch("/fonts/NotoSans-Regular.ttf");
-  const buffer = await res.arrayBuffer();
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  notoSansBase64Cache = btoa(binary);
-  return notoSansBase64Cache;
-}
 
 function PrintIcon() {
   return (
@@ -37,6 +26,15 @@ function PdfIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ListPlusIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 6h16M4 12h9M4 18h9" strokeLinecap="round" />
+      <path d="M18 15v6m-3-3h6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -58,6 +56,10 @@ export function ResultsToolbar({ programs }: { programs: ProgramWithRelations[] 
   const [pdfLoading, setPdfLoading] = useState(false);
   const [transferred, setTransferred] = useState(false);
   const [title, setTitle] = useState("2026 YKS Tercih Öneri Listesi");
+  const { selected, clear } = useSelection();
+  const [listMenuOpen, setListMenuOpen] = useState(false);
+  const [addedFeedback, setAddedFeedback] = useState<ListKey | null>(null);
+  const listMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function sync() {
@@ -66,6 +68,22 @@ export function ResultsToolbar({ programs }: { programs: ProgramWithRelations[] 
     sync();
     return subscribeStudent(sync);
   }, []);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (listMenuRef.current && !listMenuRef.current.contains(e.target as Node)) setListMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  function addSelectedToList(key: ListKey) {
+    addManyToList([...selected], key);
+    setListMenuOpen(false);
+    setAddedFeedback(key);
+    clear();
+    setTimeout(() => setAddedFeedback(null), 2000);
+  }
 
   async function downloadPdf() {
     setPdfLoading(true);
@@ -130,6 +148,31 @@ export function ResultsToolbar({ programs }: { programs: ProgramWithRelations[] 
           <PdfIcon />
           {pdfLoading ? "Hazırlanıyor..." : "PDF İndir"}
         </button>
+        <div className="relative" ref={listMenuRef}>
+          <button
+            type="button"
+            onClick={() => setListMenuOpen((v) => !v)}
+            disabled={selected.size === 0}
+            className={btnClass}
+          >
+            <ListPlusIcon />
+            {addedFeedback ? `${LIST_LABELS[addedFeedback]}'e eklendi ✓` : `Listeye Ekle${selected.size ? ` (${selected.size})` : ""}`}
+          </button>
+          {listMenuOpen ? (
+            <div className="absolute left-0 z-30 mt-1.5 w-36 rounded-xl border border-border bg-surface p-1.5 shadow-[var(--shadow-lg)]">
+              {LIST_KEYS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => addSelectedToList(key)}
+                  className="block w-full rounded-lg px-3 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-accent-soft"
+                >
+                  {LIST_LABELS[key]}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={transferToAi}

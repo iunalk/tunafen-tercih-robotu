@@ -44,6 +44,16 @@ export function toggleInList(programId: number, key: ListKey): boolean {
   return !has;
 }
 
+/** Birden fazla programı tek seferde bir listeye ekler (zaten varsa tekrar eklemez). */
+export function addManyToList(programIds: number[], key: ListKey) {
+  if (!programIds.length) return;
+  const state = readLists();
+  const merged = new Set(state[key]);
+  for (const id of programIds) merged.add(id);
+  state[key] = [...merged];
+  writeLists(state);
+}
+
 export function removeFromList(programId: number, key: ListKey) {
   const state = readLists();
   state[key] = state[key].filter((id) => id !== programId);
